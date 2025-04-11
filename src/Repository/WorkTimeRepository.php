@@ -7,6 +7,7 @@ use App\Entity\WorkTime;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Common\Collections\Criteria;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -15,6 +16,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class WorkTimeRepository extends ServiceEntityRepository
 {
+    public const HOURS_IN_DAY = 24;
+    public const MINUTES_IN_HOUR = 60;
     public function __construct(
         ManagerRegistry $registry,
         private EntityManagerInterface $manager,
@@ -32,7 +35,7 @@ class WorkTimeRepository extends ServiceEntityRepository
 
         $maxHours = $this->params->get('work_time.max_hours_per_day');
         $interval = $startDateTime->diff($endDateTime);
-        $hours = ($interval->days * 24) + $interval->h + ($interval->i / 60);
+        $hours = ($interval->days * self::HOURS_IN_DAY) + $interval->h + ($interval->i / self::MINUTES_IN_HOUR);
 
         if ($hours > $maxHours) {
             return null;
@@ -64,4 +67,15 @@ class WorkTimeRepository extends ServiceEntityRepository
 
         return $workTime;
     }
+
+    public function findBetweenDates(Employee $employee, \DateTime $start, \DateTime $end): array
+    {
+        $criteria = Criteria::create()
+            ->where(Criteria::expr()->eq('employee', $employee))
+            ->andWhere(Criteria::expr()->gte('workDay', $start))
+            ->andWhere(Criteria::expr()->lte('workDay', $end));
+
+        return $this->matching($criteria)->toArray();
+    }
+
 }
